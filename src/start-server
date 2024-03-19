@@ -1,0 +1,70 @@
+#!/usr/bin/python
+
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from lib.selective_repeat_server import SelectiveRepeatServer
+from lib.stop_and_wait_server import StopAndWaitServer
+import logging
+
+
+def parse_arguments():
+    parser = create_argument_parser()
+    return parser.parse_args()
+
+
+def create_argument_parser():
+    parser = ArgumentParser(
+        description="Starts a file hosting/transfering server",
+        formatter_class=ArgumentDefaultsHelpFormatter,
+    )
+
+    output_type = parser.add_mutually_exclusive_group()
+    output_type.add_argument(
+        "-v", "--verbose", action="store_true", help="increase output verbosity"
+    )
+    output_type.add_argument(
+        "-q", "--quiet", action="store_true", help="decrease output verbosity"
+    )
+    parser.add_argument(
+        "-H", "--host", help="service IP address", metavar="ADDR", default="localhost"
+    )
+    parser.add_argument("-p", "--port", help="service port", default=8070, type=int)
+    parser.add_argument(
+        "-s", "--storage", help="storage dir path", default="storage", metavar="DIRPATH"
+    )
+    parser.add_argument(
+        "-t",
+        "--type",
+        choices=["sw", "sr"],
+        default="sw",
+        help="type of communication protocol to use during service",
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    if args.verbose:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    elif args.quiet:
+        logging.basicConfig(
+            level=logging.CRITICAL,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    else:
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+
+    if args.type == "sr":
+        server = SelectiveRepeatServer(args.host, args.port, args.storage)
+    if args.type == "sw":
+        server = StopAndWaitServer(args.host, args.port, args.storage)
+    server.start()

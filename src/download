@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from lib.selective_repeat_client import SelectiveRepeatClient
+from lib.stop_and_wait_client import StopAndWaitClient
+import logging
+
+
+def parse_arguments():
+    parser = create_argument_parser()
+    return parser.parse_args()
+
+
+def create_argument_parser():
+    parser = ArgumentParser(
+        description="Download a file from a server",
+        formatter_class=ArgumentDefaultsHelpFormatter,
+    )
+
+    output_type = parser.add_mutually_exclusive_group()
+    output_type.add_argument(
+        "-v", "--verbose", action="store_true", help="increase output verbosity"
+    )
+    output_type.add_argument(
+        "-q", "--quiet", action="store_true", help="decrease output verbosity"
+    )
+    parser.add_argument(
+        "-H", "--host", help="server IP address", default="localhost", metavar="ADDR"
+    )
+    parser.add_argument("-p", "--port", help="server port", default=8070, type=int)
+    parser.add_argument(
+        "-d",
+        "--dst",
+        help="destination file path",
+        metavar="FILEPATH",
+        default="downloads",
+    )
+    parser.add_argument(
+        "-n", "--name", help="file name", metavar="FILENAME", required=True
+    )
+    parser.add_argument(
+        "-t",
+        "--type",
+        choices=["sw", "sr"],
+        default="sw",
+        help="type of communication protocol to use during download",
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+
+    print_progress_bar = True
+    if args.verbose:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+    elif args.quiet:
+        logging.basicConfig(
+            level=logging.CRITICAL,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+        print_progress_bar = False
+    else:
+        logging.basicConfig(
+            level=logging.WARNING,
+            format="%(asctime)s [%(levelname)s] %(message)s",
+            datefmt="%H:%M:%S",
+        )
+
+    if args.type == "sw":
+        client = StopAndWaitClient(args.host, args.port, print_progress_bar)
+    if args.type == "sr":
+        client = SelectiveRepeatClient(args.host, args.port, print_progress_bar)
+
+    try:
+        client.download(args.name, args.dst)
+    except FileNotFoundError:
+        logging.error(f"❌ There is no \033[1m{args.name}\033[0;0m file to download.")
+    except TimeoutError:
+        logging.error("❌ Could not connect to server.")
+    except Exception as e:
+        print(e)
